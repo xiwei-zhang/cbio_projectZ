@@ -17,24 +17,28 @@ using namespace vigra;
 
 int main (int argc, char ** argv)
 {
+    bool debugMode = false;
+
     clock_t t1 = clock();
 
     using namespace vigra::multi_math;
 
-    if (argc < 2){
-        std::cout<<"Error: Give an image!!"<<std::endl;
+    if (argc < 3){
+        std::cout<<"Error: Give an image!! and an output image name!!"<<std::endl;
         return 1;
     }
     
     //// Open an image, read info
     vigra::ImageImportInfo imageInfo(argv[1]);
     
-    std::cout<<imageInfo.getFileType() <<std::endl;
-    std::cout << "  pixel type:  " << imageInfo.getPixelType() << std::endl;
-    std::cout << "  color image: ";
-    if (imageInfo.isColor())    std::cout << "yes (";
-    else                        std::cout << "no  (";
-    std::cout << "number of channels: " << imageInfo.numBands() << ")"<< std::endl;
+    if (debugMode){
+        std::cout<<imageInfo.getFileType() <<std::endl;
+        std::cout << "  pixel type:  " << imageInfo.getPixelType() << std::endl;
+        std::cout << "  color image: ";
+        if (imageInfo.isColor())    std::cout << "yes (";
+        else                        std::cout << "no  (";
+        std::cout << "number of channels: " << imageInfo.numBands() << ")"<< std::endl;
+    }
     
     assert(imageInfo.isColor());
 
@@ -42,6 +46,7 @@ int main (int argc, char ** argv)
     MultiArray<2, vigra::RGBValue<double> > imtempRGB(imageInfo.shape());
 
     importImage(imageInfo, iminRGB);
+
     
     
     //// Color deconvolution
@@ -58,8 +63,10 @@ int main (int argc, char ** argv)
     vigra_mod::im2uint8(imtempD1, iminH);
     vigra_mod::im2uint8(imtempD2, iminE);
 
-    exportImage(iminH, ImageExportInfo("output/iminH.png"));
-    exportImage(iminE, ImageExportInfo("output/iminE.png"));
+    if (debugMode){
+        exportImage(iminH, ImageExportInfo("output/iminH.png"));
+        exportImage(iminE, ImageExportInfo("output/iminE.png"));
+    }
 
     
     //// 1. Fill holes:
@@ -71,11 +78,13 @@ int main (int argc, char ** argv)
 
     // vigra::discMedian(iminH, imtemp3, 2); // PARA
     imtemp3 = iminH;
-    exportImage(imtemp3, ImageExportInfo("output/imMedian3.png"));
+    if (debugMode)
+        exportImage(imtemp3, ImageExportInfo("output/imMedian3.png"));
 
     vigra_mod::FillHoles(imtemp3, imtemp1, 8);
     imRes = imtemp1 - imtemp3;
-    exportImage(imRes, ImageExportInfo("output/imResFillholes.png"));
+    if (debugMode)
+        exportImage(imRes, ImageExportInfo("output/imResFillholes.png"));
 
     
 
@@ -83,7 +92,8 @@ int main (int argc, char ** argv)
     MultiArray<2, UInt8> imThd(iminRGB.shape());
     
     fastMeanFilter(imRes, imtemp1, 50);  // PARA
-    exportImage(imtemp1, ImageExportInfo("output/imResMean.png"));
+    if (debugMode)
+        exportImage(imtemp1, ImageExportInfo("output/imResMean.png"));
     UInt8 globalMeanV = vigra_mod::meanValue(imRes, 1);
     UInt8 tempV(0);
     for (int k=0; k < iminRGB.size(); ++k){
@@ -91,24 +101,14 @@ int main (int argc, char ** argv)
         imThd[k] = imRes[k] > tempV ? 255:0 ;
     }
     
-    exportImage(imThd, ImageExportInfo("output/imThd.png"));
+    exportImage(imThd, ImageExportInfo(argv[2]));
 
-    float meanImV = 0;
-    int nbPixel = 0;
-    for (int k=0; k < iminRGB.size(); ++k){
-        if (imRes[k]==0) continue;
-        meanImV += imRes[k];
-        nbPixel ++;
-    }
-    meanImV /= nbPixel;
-    std::cout<<"Global mean value: "<< meanImV<<" "<<vigra_mod::meanValue(imRes, 1)<<std::endl;
-    
-    
     clock_t t2 = clock();
 
-    cout<<"Total time: "<<double(vigra_mod::diffclock(t2,t1))<<"ms"<<endl;
+    
+    if (debugMode)
+        cout<<"Total time: "<<double(vigra_mod::diffclock(t2,t1))<<"ms"<<endl;
 
-    std::cout<<"Hello world"<<std::endl;
     
     return 0;
 }
