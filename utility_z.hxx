@@ -40,6 +40,31 @@ template <class T1> int round(T1 number){
     else
         return (float)abs(modf(number,&a))>0.5?floor(number):ceil(number);
 }
+
+    
+template <class T1, class S1>
+void
+imInf(MultiArrayView<2, T1, S1> const & imin1,
+      MultiArrayView<2, T1, S1> const & imin2,
+      MultiArrayView<2, T1, S1> imout)
+{
+    for (int k=0; k<imin1.size(); ++k){
+        imout[k] = min(imin1[k], imin2[k]);
+    }
+}// end of function
+
+
+template <class T1, class S1>
+void
+imSup(MultiArrayView<2, T1, S1> const & imin1,
+      MultiArrayView<2, T1, S1> const & imin2,
+      MultiArrayView<2, T1, S1> imout)
+{
+    for (int k=0; k<imin1.size(); ++k){
+        imout[k] = max(imin1[k], imin2[k]);
+    }
+}// end of function
+    
     
     
 template <class T1, class S1,
@@ -387,11 +412,24 @@ void Minima( const MultiArrayView<2, UInt8> imin,  MultiArrayView<2, UInt8> imou
 
 
 
-void FillHoles( const MultiArrayView<2, UInt8> imin,  MultiArrayView<2, UInt8> imout, int se){
+void FillHoles( const MultiArrayView<2, UInt8> imin,  MultiArrayView<2, UInt8> imout, int se, int borderWidth=0){
 	MultiArray<2, UInt8> imtemp1(imin.shape());
+    MultiArray<2, UInt8> imtemp2(imin.shape());
+
     imtemp1.init(255);
     drawImBorder(imtemp1, 0);
     RecOverBuild(imin,imtemp1, imout,se);
+    
+    if (borderWidth > 0){
+        imtemp1.init(255);
+        MultiArrayView <2, UInt8> subarray = imtemp1.subarray(Shape2(borderWidth, borderWidth), Shape2(-borderWidth, -borderWidth));
+        subarray.init(0);
+        
+        RecOverBuild(imin,imtemp1,imtemp2,se);
+        
+        imtemp1 = imout;
+        imSup(imtemp2, imtemp1, imout);
+    }
 }
 
 
@@ -630,18 +668,7 @@ im2uint8(MultiArrayView<2, T1, S1> const & imin,
     }
 }// end of function
 
-
-template <class T1, class S1>
-void
-imInf(MultiArrayView<2, T1, S1> const & imin1,
-        MultiArrayView<2, T1, S1> const & imin2,
-		MultiArrayView<2, T1, S1> imout)
-{
-    for (int k=0; k<imin1.size(); ++k){
-        imout[k] = min(imin1[k], imin2[k]);
-    }
-}// end of function
-
+    
 template <class T1, class S1>
 int
 meanValue (MultiArrayView<2, T1, S1> const & imin, int onset = 0)
@@ -650,7 +677,7 @@ meanValue (MultiArrayView<2, T1, S1> const & imin, int onset = 0)
     int nbPixel = 0;
     for (int k=0; k<imin.size(); ++k){
         if (onset){
-            if (imin[k]==0)
+            if (imin[k] < onset)
                 continue;
             else{
                 meanV += imin[k];
