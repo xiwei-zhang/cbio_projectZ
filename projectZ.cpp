@@ -75,39 +75,39 @@ void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool con
     imDiv = imRes - imtemp2;
     
     //// 1.c Area opening
-    vigra_mod::Threshold(imDiv, imtemp2, 1, 255, 255, 0);
-    BasicImage<UInt8> imb1(iminRGB.shape()[0], iminRGB.shape()[1]);
-    BasicImage<UInt8> imb2(iminRGB.shape()[0], iminRGB.shape()[1]);
-    Diff2D image_size = Diff2D(iminRGB.shape()[0], iminRGB.shape()[1]);
-    morpho::neighborhood2D nb(morpho::WITHOUTCENTER8, image_size);
-    
-    vigra_mod::MultAr2BIm(imtemp2, imb1);
-    morpho::morphoAreaOpening(imb1, imb2, 25, nb);
-    vigra_mod::BIm2MultAr(imb2, imDivArea);
-    if (debugMode){
-        exportImage(imDiv, ImageExportInfo("output/imDividedRec.png"));
-        exportImage(imDivArea, ImageExportInfo("output/imDividedRecArea.png"));
-    }
+//    vigra_mod::Threshold(imDiv, imtemp2, 1, 255, 255, 0);
+//    BasicImage<UInt8> imb1(iminRGB.shape()[0], iminRGB.shape()[1]);
+//    BasicImage<UInt8> imb2(iminRGB.shape()[0], iminRGB.shape()[1]);
+//    Diff2D image_size = Diff2D(iminRGB.shape()[0], iminRGB.shape()[1]);
+//    morpho::neighborhood2D nb(morpho::WITHOUTCENTER8, image_size);
+//    
+//    vigra_mod::MultAr2BIm(imtemp2, imb1);
+//    morpho::morphoAreaOpening(imb1, imb2, 25, nb);  // PARA
+//    vigra_mod::BIm2MultAr(imb2, imDivArea);
+//    if (debugMode){
+//        exportImage(imDiv, ImageExportInfo("output/imDividedRec.png"));
+//        exportImage(imDivArea, ImageExportInfo("output/imDividedRecArea.png"));
+//    }
     
     
     //// 2. Dynamic threshold
     ////     -> mean filter
     ////     -> compare to the filtered image
-//    MultiArray<2, UInt8> imThd(iminRGB.shape());
-//    
-//    fastMeanFilter(imRes, imtemp1, 30);  // PARA
-//    if (debugMode)
-//        exportImage(imtemp1, ImageExportInfo("output/imResMean.png"));
-//    UInt8 globalMeanV = vigra_mod::meanValue(imRes, 5);
-//    UInt8 tempV(0);
-//    for (int k=0; k < iminRGB.size(); ++k){
-//        tempV = std::max<UInt8>(globalMeanV, imtemp1[k]); // minimum value of thd
-//        imThd[k] = imRes[k] > tempV ? 255:0 ;
-//    }
-//    
-//    exportImage(imThd, ImageExportInfo(argv[2]));
+    MultiArray<2, UInt8> imThd(iminRGB.shape());
     
-    exportImage(imDivArea, ImageExportInfo(argv[2]));
+    fastMeanFilter(imRes, imtemp1, 30);  // PARA
+    if (debugMode)
+        exportImage(imtemp1, ImageExportInfo("output/imResMean.png"));
+    UInt8 globalMeanV = vigra_mod::meanValue(imRes, 5);
+    UInt8 tempV(0);
+    for (int k=0; k < iminRGB.size(); ++k){
+        tempV = std::max<UInt8>(globalMeanV, imtemp1[k]); // minimum value of thd
+        imThd[k] = imRes[k] > tempV ? 255:0 ;
+    }
+    
+    exportImage(imThd, ImageExportInfo(argv[2]));
+    
+//    exportImage(imDivArea, ImageExportInfo(argv[2]));
 
 
     
@@ -115,7 +115,7 @@ void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool con
 
 int main (int argc, char ** argv)
 {
-    bool debugMode = true;
+    bool debugMode = false;
 
     clock_t t1 = clock();
 

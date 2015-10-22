@@ -15,19 +15,19 @@ import basicOperations
 winSize = 231
 winSizeR = winSize/2
 winSizeR2 = winSize/2+1
-cut_orig = False
+cut_orig = True
 cut_result = True
 
 ## directories
-path_result = "/Volumes/Xiwei_MacExt/output/test1"
-path_imin = "/Volumes/Xiwei_MacExt/cecog_data/train_40"
-path_csv = "/Volumes/Xiwei_MacExt/databases/mitos_atypia"
-# path_ch5 = "/Volumes/Xiwei_MacExt/databases/mitos_atypia"
-path_out_mitosis  = "/Volumes/Xiwei_MacExt/output/test1_crop"
+# path_result = "/Volumes/Xiwei_MacExt/output/test1"
+# path_imin = "/Volumes/Xiwei_MacExt/cecog_data/train_40"
+# path_csv = "/Volumes/Xiwei_MacExt/databases/mitos_atypia"
+# path_out_mitosis  = "/Volumes/Xiwei_MacExt/output/test1_crop"
 path_out_not_mitosis  = "/Volumes/Xiwei_MacExt/output/test1_crop"
-# path = "/home/zhang/work/images/mitos_atypia"
-# path_out_mitosis  = "/home/zhang/work/images/mitos_atypia/GT_segments/mitosis"
-# path_out_not_mitosis  = "/home/zhang/work/images/mitos_atypia/GT_segments/not_mitosis"
+path_result = "/home/seawave/work/output/test2_div2"
+path_imin = "/home/seawave/work/database/train_40"
+path_csv = "/home/seawave/work/database/mitos_atypia"
+path_out_mitosis  = "/home/seawave/work/output/test2_crops"
 
 
 
@@ -35,7 +35,6 @@ path_out_not_mitosis  = "/Volumes/Xiwei_MacExt/output/test1_crop"
 GT_list_all = basicOperations.getFiles(path_csv,'csv')
 orig_image_all = basicOperations.getFiles(path_imin,'tiff')
 results = basicOperations.getFiles(path_result,'png')
-
 
 mitosis_set = []
 not_mitosis_set = []
