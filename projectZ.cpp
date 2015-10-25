@@ -1,3 +1,9 @@
+/***
+ ProjectZ, coded by Xiwei Zhang in Oct. 2015, CBIO, Paris
+ to use the binary file:
+ ./projectz [input color image] [output image name] (csv file, for annotation analysis)
+ ***/
+
 #include <iostream>
 #include <assert.h>
 #include <time.h>
@@ -6,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <queue>
 
 #include <vigra/multi_array.hxx>
 #include <vigra/stdimage.hxx>
@@ -99,7 +106,7 @@ public:
 void computerFeats_1( vector<features> & feats, MultiArray<2, UInt8> const iminH, MultiArray<2, UInt8> const imRes, MultiArray<2, UInt8> const imCandi, MultiArray<2, UInt8> const imCandiMid, MultiArray<2, int> const imlabel, bool debugMode ){
     
     int n_candi = vigra_mod::labelCount(imlabel);
-    if (n_candi != feats.size()) std::cout<<"SOMETHING IS WRONG!!"<<std::endl;
+    if ( (n_candi + 1) != feats.size()) std::cout<<"SOMETHING IS WRONG!!"<<std::endl;
     
     for (int i=0; i<iminH.shape()[0]; ++i){
         for (int j=0; j<iminH.shape()[1]; ++j){
@@ -136,6 +143,73 @@ void computerFeats_1( vector<features> & feats, MultiArray<2, UInt8> const iminH
         }
     }
 }
+
+
+void findMitosis(vector<int> const (& mitosPos)[2],  MultiArray<2, int> const imlabel, vector<int> & mitoLabel, int R){
+    std::cout<<"Hello"<<std::endl;
+    const int nb[8][2] = { {-1,-1}, {-1,0}, {-1,1},
+        {0,-1}, {0,1}, {1,-1}, {1,0}, {1,1} };
+    for (int k = 0; k<mitosPos[0].size(); ++k){
+        int x0 = mitosPos[0][k];
+        int y0 = mitosPos[1][k];
+        
+        //// find the mitosis in the candidates
+        bool findP = false;
+        MultiArray<2, bool> imstate (imlabel.shape());
+        imstate.init(false);
+        int interCount = 0;
+        queue<int> Qxy[2];
+        Qxy[0].push(-1);
+        Qxy[1].push(-1);
+        Qxy[0].push(x0);
+        Qxy[1].push(y0);
+        imstate(x0, y0) = true;
+        
+        while (Qxy[0].size() > 0 && interCount < R){
+            int x = Qxy[0].front();
+            int y = Qxy[1].front();
+            Qxy[0].pop();
+            Qxy[1].pop();
+            
+            if (x == -1) {
+                interCount ++;
+                Qxy[0].push(-1);
+                Qxy[1].push(-1);
+            }
+            else{
+                if (imlabel(x,y) > 0){
+                    mitoLabel.push_back(imlabel(x,y));
+                    findP = true;
+                    break;
+                }
+                else{
+                    for (int coord = 0; coord < 8; ++coord){
+                        int xx = x + nb[coord][0];
+                        int yy = y + nb[coord][1];
+                        if (xx < 0 || xx >= imlabel.shape()[0] ||
+                            yy < 0 || yy >= imlabel.shape()[1] )
+                            continue;
+                        if (! imstate(xx, yy)){
+                            imstate(xx, yy) = true;
+                            Qxy[0].push(xx);
+                            Qxy[1].push(yy);
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (!findP){
+            std::cout<< "Not find mitosis "<<x0<<" "<<y0<<std::endl;
+        }
+    }
+    
+//    for (int k = 0; k<mitoLabel.size(); ++k)
+//        std::cout<< mitoLabel[k] <<" "<< std::endl;
+    
+    
+}
+
 
 void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool const debugMode, int argc, char ** const argv){
     
@@ -259,21 +333,31 @@ void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool con
         int n_candi = vigra_mod::labelCount(imlabel);
         std::cout<<"All candidates: "<<n_candi<<std::endl;
         
-        vector <features> feats(n_candi);
+        vector <features> feats(n_candi + 1); // "+ 1" is because in imlabel, start from 1, not zero. Thus feats[0] is Null.
 
         computerFeats_1( feats, iminH, imRes, imThd, imDivArea, imlabel, debugMode);
         
-        feats[0].getFeatures();
+        vector<int> mitoLabel;
+        findMitosis(mitosPos, imlabel, mitoLabel, 20);
+        
+        // feats[0].getFeatures();
         
         ofstream myfile;
         myfile.open ("features.txt");
-        for (int k=0; k < feats.size(); ++k){
+        for (int k=1; k < feats.size(); ++k){
+            bool isMito(false);
+            for (int l=0; l<mitoLabel.size(); ++l){
+                if (k == mitoLabel[l]) isMito = true;
+            }
             myfile << feats[k]._x_center() <<" "<< feats[k]._y_center()<<" "
             <<feats[k]._x_coord()<<" "<<feats[k]._y_coord()<<" "
             <<feats[k]._areaRC()<<" "<<feats[k]._areaMid()<<" "<<feats[k]._meanIntensityResRC()<<" "
             <<feats[k]._maxIntensityResRC()<<" "<<feats[k]._minIntensityResRC()<<" "
             <<feats[k]._meanIntensityResMid()<<" "<<feats[k]._maxIntensityResMid()<<" "
-            <<feats[k]._minIntensityResMid()<<"\n";
+            <<feats[k]._minIntensityResMid();
+            
+            if (isMito) myfile << " 1\n";
+            else myfile << " 0\n";
         }
         myfile << "Writing this to a file.\n";
         myfile.close();
