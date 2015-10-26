@@ -1,7 +1,7 @@
 /***
  ProjectZ, coded by Xiwei Zhang in Oct. 2015, CBIO, Paris
  to use the binary file:
- ./projectz [input color image] [output image name] (csv file, for annotation analysis)
+ ./projectz [input color image] [output image name] (csv file, for annotation analysis) (features file name)
  ***/
 
 #include <iostream>
@@ -146,7 +146,6 @@ void computerFeats_1( vector<features> & feats, MultiArray<2, UInt8> const iminH
 
 
 void findMitosis(vector<int> const (& mitosPos)[2],  MultiArray<2, int> const imlabel, vector<int> & mitoLabel, int R){
-    std::cout<<"Hello"<<std::endl;
     const int nb[8][2] = { {-1,-1}, {-1,0}, {-1,1},
         {0,-1}, {0,1}, {1,-1}, {1,0}, {1,1} };
     for (int k = 0; k<mitosPos[0].size(); ++k){
@@ -217,7 +216,7 @@ void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool con
     
     bool analyseMode = false;
     
-    if (argc == 4) analyseMode = true;
+    if (argc == 5) analyseMode = true;
     
     MultiArray<2, vigra::RGBValue<double> > imtempRGB(iminRGB.shape());
 
@@ -331,7 +330,6 @@ void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool con
 
         vigra_mod::Label(imThd, imlabel, 8);
         int n_candi = vigra_mod::labelCount(imlabel);
-        std::cout<<"All candidates: "<<n_candi<<std::endl;
         
         vector <features> feats(n_candi + 1); // "+ 1" is because in imlabel, start from 1, not zero. Thus feats[0] is Null.
 
@@ -343,7 +341,7 @@ void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool con
         // feats[0].getFeatures();
         
         ofstream myfile;
-        myfile.open ("features.txt");
+        myfile.open (argv[4]);
         for (int k=1; k < feats.size(); ++k){
             bool isMito(false);
             for (int l=0; l<mitoLabel.size(); ++l){
@@ -359,28 +357,25 @@ void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool con
             if (isMito) myfile << " 1\n";
             else myfile << " 0\n";
         }
-        myfile << "Writing this to a file.\n";
         myfile.close();
-        
     }
-    
-    
-    
-
-
-
-    
 }
+
+
 
 int main (int argc, char ** argv)
 {
-    bool debugMode = true;
+    bool debugMode = false;
     
     clock_t t1 = clock();
 
 
     if (argc < 3){
         std::cout<<"Error: Give an image!! and an output image name!!"<<std::endl;
+        return 1;
+    }
+    else if (argc > 3 && argc < 5){
+        std::cout<<"If you want to computer the features, give csv file and output name!!"<<std::endl;
         return 1;
     }
     

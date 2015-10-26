@@ -508,10 +508,21 @@ def multi_proc(images, n_job):
         tata = toto.match(image)
         slide = tata.groupdict()["slide"]
         filename = tata.groupdict()["filename"]
-
+        
         imout = filename + ".png"
         output_file = os.path.join(output_path, imout)
-        order = "./projectZ " + image + " " + output_file
+
+        csv = filename + "_mitosis.csv"
+        csvfile = os.path.join(csv_path, slide)
+        csvfile = os.path.join(csvfile, "mitosis")
+        csvfile = os.path.join(csvfile, csv)
+
+        featout = filename + ".txt"
+        featout_file = os.path.join(output_path, featout)
+
+        order = "./projectZ " + image + " " + output_file + " " \
+                + csvfile + " " + featout_file
+
         os.system(order)
     
 
@@ -524,7 +535,8 @@ if __name__ == "__main__":
     n_job = 4
     
     input_path = "/home/seawave/work/database/train_40"
-    output_path = "/home/seawave/work/output/test1"
+    csv_path = "/home/seawave/work/database/mitos_atypia"
+    output_path = "/home/seawave/work/output/test1b"
     
     
     train_folders = ["A03","A04","A05","A07","A10","A11","A12","A14","A15",\
@@ -534,7 +546,7 @@ if __name__ == "__main__":
    
     images = basicOperations.getFiles(input_path, "tiff")
 
-    if 1: ### check not analysed images
+    if 0: ### check not analysed images
         images_not_analysed = []
         pattern1 = ".+train_40/(?P<slide>[A-Za-z0-9]+)/(?P<filename>[A-Za-z0-9_]+).tiff"
         toto = re.compile(pattern1)
