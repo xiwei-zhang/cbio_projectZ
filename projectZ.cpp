@@ -42,6 +42,8 @@ class features{
     int x_center;
     int y_center;
     int n_label;
+    
+    bool iskept;
  
 public:
     features(){
@@ -59,6 +61,8 @@ public:
         x_center = 0;
         y_center = 0;
         n_label = -1;
+        
+        iskept = true;
     }
     
     void getFeatures(){
@@ -98,8 +102,12 @@ public:
     const int & _x_center() const { return x_center; }
     const int & _y_center() const { return y_center; }
     const int & _n_label() const { return n_label; }
+    const bool & _iskept() const { return iskept; }
+
 
     friend void computerFeats_1( vector<features> & feats, MultiArray<2, UInt8> const iminH, MultiArray<2, UInt8> const imRes, MultiArray<2, UInt8> const imCandi, MultiArray<2, UInt8> const imCandiMid, MultiArray<2, int> const imlabel, bool debugMode );
+    
+    friend void selection_1( vector<features> & feats, MultiArray<2, int> const imlabel, MultiArray<2, UInt8> & imout);
 };
 
 
@@ -141,6 +149,26 @@ void computerFeats_1( vector<features> & feats, MultiArray<2, UInt8> const iminH
             areaf = float( feats[k].areaMid );
             feats[k].meanIntensityResMid = int( vigra_mod::round( feats[k].meanIntensityResMid / areaf ));
         }
+    }
+}
+
+
+void selection_1( vector<features> & feats, MultiArray<2, int> const imlabel, MultiArray<2, UInt8> & imout){
+    
+    int * mapLabelIntensity = new int [ feats.size() ];
+    std::fill_n(mapLabelIntensity, feats.size(), 0);
+
+    for (int k=1; k < feats.size(); ++k){
+        if (feats[k].meanIntensityResRC < 50 || feats[k].areaRC < 70 || feats[k].areaMid < 30 || feats[k].areaRC > 2000) {
+            feats[k].iskept = false;
+        }
+        else {
+            mapLabelIntensity[k] = 255;
+        }
+    }
+    
+    for (int k=0; k < imlabel.size(); ++k){
+        imout[k] = mapLabelIntensity[ imlabel[k] ];
     }
 }
 
@@ -298,10 +326,32 @@ void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool con
         imThd[k] = imRes[k] > tempV ? 255:0 ;
     }
     
-    exportImage(imThd, ImageExportInfo(argv[2]));
+    if (debugMode){
+        exportImage(imThd, ImageExportInfo("output/imThreshold.png"));
+    }
+//    exportImage(imThd, ImageExportInfo(argv[2]));
 //    exportImage(imDivArea, ImageExportInfo(argv[2]));
 
+
+    //// Get coresponding candidate
+    MultiArray<2, int> imlabel(iminRGB.shape());
+    MultiArray<2, int> imlabel2(iminRGB.shape());
+    MultiArray<2, UInt8> imSelection(iminRGB.shape());
+
     
+    vigra_mod::Label(imThd, imlabel, 8);
+    int n_candi = vigra_mod::labelCount(imlabel);
+    
+    vector <features> feats(n_candi + 1); // "+ 1" is because in imlabel, start from 1, not zero. Thus feats[0] is Null.
+    computerFeats_1( feats, iminH, imRes, imThd, imDivArea, imlabel, debugMode);
+    selection_1( feats, imlabel, imSelection );
+    
+    if (debugMode){
+        exportImage(imSelection, ImageExportInfo("output/imSelection.png"));
+    }
+    
+    exportImage(imSelection, ImageExportInfo(argv[2]));
+
     
     //// Analyse annotated mitosis
     if (analyseMode){
@@ -325,24 +375,18 @@ void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool con
         }
         infile.close();
     
-        //// Get coresponding candidate
-        MultiArray<2, int> imlabel(iminRGB.shape());
-
-        vigra_mod::Label(imThd, imlabel, 8);
-        int n_candi = vigra_mod::labelCount(imlabel);
-        
-        vector <features> feats(n_candi + 1); // "+ 1" is because in imlabel, start from 1, not zero. Thus feats[0] is Null.
-
-        computerFeats_1( feats, iminH, imRes, imThd, imDivArea, imlabel, debugMode);
-        
+        for (int k=0; k<imlabel.size(); ++k) {
+            imlabel2[k] = imSelection[k] > 0 ? imlabel[k] : 0;
+        }
         vector<int> mitoLabel;
-        findMitosis(mitosPos, imlabel, mitoLabel, 20);
+        findMitosis(mitosPos, imlabel2, mitoLabel, 20);
         
         // feats[0].getFeatures();
         
         ofstream myfile;
         myfile.open (argv[4]);
         for (int k=1; k < feats.size(); ++k){
+            if (!feats[k]._iskept()) continue;
             bool isMito(false);
             for (int l=0; l<mitoLabel.size(); ++l){
                 if (k == mitoLabel[l]) isMito = true;
