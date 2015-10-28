@@ -19,15 +19,15 @@ cut_orig = True
 cut_result = True
 
 ## directories
-# path_result = "/Volumes/Xiwei_MacExt/output/test1"
-# path_imin = "/Volumes/Xiwei_MacExt/cecog_data/train_40"
-# path_csv = "/Volumes/Xiwei_MacExt/databases/mitos_atypia"
-# path_out_mitosis  = "/Volumes/Xiwei_MacExt/output/test1_crop"
-path_out_not_mitosis  = "/Volumes/Xiwei_MacExt/output/test1_crop"
-path_result = "/home/seawave/work/output/test2_div2"
-path_imin = "/home/seawave/work/database/train_40"
-path_csv = "/home/seawave/work/database/mitos_atypia"
-path_out_mitosis  = "/home/seawave/work/output/test2_crops"
+path_result = "/Volumes/Xiwei_MacExt/output/test2"
+path_imin = "/Volumes/Xiwei_MacExt/cecog_data/train_40"
+path_csv = "/Volumes/Xiwei_MacExt/databases/mitos_atypia"
+path_out_mitosis  = "/Volumes/Xiwei_MacExt/output/test2_crops"
+# path_out_not_mitosis  = "/Volumes/Xiwei_MacExt/output/test1_crop"
+# path_result = "/home/seawave/work/output/test2_div2"
+# path_imin = "/home/seawave/work/database/train_40"
+# path_csv = "/home/seawave/work/database/mitos_atypia"
+# path_out_mitosis  = "/home/seawave/work/output/test2_crops"
 
 
 

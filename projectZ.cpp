@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 #include <queue>
+#include <list>
+#include <set>
 
 #include <vigra/multi_array.hxx>
 #include <vigra/stdimage.hxx>
@@ -24,12 +26,21 @@
 
 #include "utility_z.hxx"
 #include "TOfft.hxx"
+// #include "maxTree.hxx"
+
+const int nl6[2][6][2] = { { {0,-1},{1,0},{0,1},{-1,1},{-1,0},{-1,-1}},
+    {{1,-1},{1,0},{1,1},{0,1},{-1,0},{0,-1}} };
+const int nl8[2][8][2] = { { {1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1} },
+    { {1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1} } };
+const float pi = 3.14159;
+
 
 using namespace vigra;
 
 class features{
-    int areaRC;
-    int areaMid;
+    //// basic features
+    int areaRC;  // bottom layer
+    int areaMid; // middle layer
     int meanIntensityResRC;
     int maxIntensityResRC;
     int minIntensityResRC;
@@ -37,6 +48,21 @@ class features{
     int maxIntensityResMid;
     int minIntensityResMid;
     
+    //// geometric features
+    int geoLength;  // geodesic length
+    int geoLength2; // L2 length between two furthest points
+    int perimeter;
+    float circularity; // (4*A) / (pi * D^2)  0 ~ 1
+    int geoLengthMid;
+    int geoLength2Mid;
+    int perimeterMid;
+    float circularityMid;
+    
+    //// texture and contexture
+    int nb_mid_obj;
+    
+    
+    //// others
     int x_coord;
     int y_coord;
     int x_center;
@@ -44,9 +70,18 @@ class features{
     int n_label;
     
     bool iskept;
- 
+    
+    int x_start;
+    int x_end;
+    int y_start;
+    int y_end;
+    
+    int p1[2]; // start point
+    int p2[2]; // end point
+
+    
 public:
-    features(){
+    features(int width, int height){
         areaRC = 0;
         areaMid = 0;
         meanIntensityResRC = 0;
@@ -56,6 +91,17 @@ public:
         maxIntensityResMid = 0;
         minIntensityResMid = 255;
         
+        geoLength = 0;
+        geoLength2 = 0;
+        perimeter = 0;
+        circularity = 0.0f;
+        geoLengthMid = 0;
+        geoLength2Mid = 0;
+        perimeterMid = 0;
+        circularityMid = 0.0f;
+        
+        nb_mid_obj = 0;
+        
         x_coord = -1;
         y_coord = -1;
         x_center = 0;
@@ -63,6 +109,11 @@ public:
         n_label = -1;
         
         iskept = true;
+        
+        x_start = width;
+        x_end = 0;
+        y_start = height;
+        y_end = 0;
     }
     
     void getFeatures(){
@@ -77,7 +128,12 @@ public:
         <<"x_coord " << x_coord <<std::endl
         <<"y_coord " << y_coord << std::endl
         <<"x_center " << x_center << std::endl
-        <<"y_center " << y_center << std::endl;
+        <<"y_center " << y_center << std::endl
+        <<"x_start " << x_start << std::endl
+        <<"x_end " << x_end << std::endl
+        <<"y_start " << y_start << std::endl
+        <<"y_end " << y_end << std::endl;
+        
     }
     
     void setLabel(int n){
@@ -103,15 +159,219 @@ public:
     const int & _y_center() const { return y_center; }
     const int & _n_label() const { return n_label; }
     const bool & _iskept() const { return iskept; }
+    const int & _geoLength() const { return geoLength; }
+    const int & _geoLength2() const { return geoLength2; }
+    const int & _perimeter() const { return perimeter; }
+    const float & _circularity() const { return circularity; }
+    const int & _nb_mid_obj() const { return nb_mid_obj; }
 
 
-    friend void computerFeats_1( vector<features> & feats, MultiArray<2, UInt8> const iminH, MultiArray<2, UInt8> const imRes, MultiArray<2, UInt8> const imCandi, MultiArray<2, UInt8> const imCandiMid, MultiArray<2, int> const imlabel, bool debugMode );
+
+
+    friend void computerFeats_1( vector<features> & feats, MultiArrayView<2, UInt8> const iminH, MultiArrayView<2, UInt8> const imRes, MultiArrayView<2, UInt8> const imCandi, MultiArrayView<2, UInt8> const imCandiMid, MultiArrayView<2, int> const imlabel, bool debugMode );
+    friend void computerFeats_2( vector<features> & feats, MultiArrayView<2, UInt8> const iminH, MultiArrayView<2, UInt8> const imRes, MultiArrayView<2, UInt8> const imCandi, MultiArrayView<2, UInt8> const imCandiMid, MultiArrayView<2, int> const imlabel, bool debugMode );
     
-    friend void selection_1( vector<features> & feats, MultiArray<2, int> const imlabel, MultiArray<2, UInt8> & imout);
-};
+    friend void selection_1( vector<features> & feats, MultiArrayView<2, int> const imlabel, MultiArrayView<2, UInt8> imout);
+    
+    friend int cropGeoLength (features const & feat, MultiArrayView<2, int> const & imlabel, int (& p1)[2], int (& p2)[2], int const label, int const se, int & perimeter);
+    friend int cropGeoLengthMid (features & feat, MultiArrayView<2, int> const & imlabel, MultiArrayView<2, int> const & imlabel2, int (& p1)[2], int (& p2)[2], int const * label2Area, int const label, int const se);
+    
+    friend void imageProc( MultiArrayView<2, vigra::RGBValue<UInt8> > const & iminRGB, bool const debugMode, int argc, char ** const argv);
+
+};  // end of class definition
+
+int cropGeoLength(features const & feat, MultiArrayView<2, int> const & imlabel, int (& p1)[2], int (& p2)[2], int const label, int const se, int & perimeter){
+    int *** nl = new int ** [2];
+    if (se == 6){
+        for (int k=0; k<2; ++k){
+            nl[k] = new int * [6];
+            for (int l=0; l<6; ++l){
+                nl[k][l] = new int [2];
+                nl[k][l][0] = nl6[k][l][0];
+                nl[k][l][1] = nl6[k][l][1];
+            }
+        }
+    }
+    else if (se == 8){
+        for (int k=0; k<2; ++k){
+            nl[k] = new int * [8];
+            for (int l=0; l<8; ++l){
+                nl[k][l] = new int [2];
+                nl[k][l][0] = nl8[k][l][0];
+                nl[k][l][1] = nl8[k][l][1];
+            }
+        }
+    }
+    
+    MultiArrayView<2, int> imcrop = imlabel.subarray(Shape2(feat.x_start, feat.y_start), Shape2(feat.x_end, feat.y_end));
+    MultiArray<2, int> imstate(imcrop.shape());
+    imstate.init(-1);
+    
+    queue<int> Q[2];
+    float dist, maxDist(0);
+    int mx, my, f(0), len(0),sumX(0),sumY(0);
+//    std::list<int> temppp[2];
+    
+    //// get border pixels push into Q
+    for (int i=0; i<imcrop.shape()[0]; ++i) {
+        for (int j=0; j<imcrop.shape()[1]; ++j) {
+            if (imcrop(i,j) != label) continue;
+            bool onEdge = false;
+            
+            if (i==0 || j==0 || i==imcrop.shape()[0]-1 || j==imcrop.shape()[1]-1){
+                onEdge = true;
+            }
+            for (int k=0; k<se; ++k) {
+                int px = i + nl[j%2][k][0];
+                int py = j + nl[j%2][k][1];
+                if (imcrop(px,py) != label) {
+                    onEdge = true;
+                    break;
+                }
+            }
+            
+            if (onEdge) {
+                Q[0].push(i);
+                Q[1].push(j);
+                sumX += i;
+                sumY += j;
+            }
+            
+            imstate(i,j) = 0;
+        }
+    }
+    
+    perimeter = int(Q[0].size());
+    int x0 = roundf(sumX / float(perimeter));
+    int y0 = roundf(sumY / float(perimeter));
+
+    //// get the pixel most far
+    while(!Q[0].empty()){
+        int px = Q[0].front();
+        int py = Q[1].front();
+        dist = sqrt((float)(x0-px)*(x0-px) + (y0-py)*(y0-py));
+        if (dist>=maxDist){
+            maxDist = dist;
+            mx = px;
+            my = py;
+        }
+        Q[0].pop();
+        Q[1].pop();
+    }
+    
+    Q[0].push(mx);
+    Q[1].push(my);
+    
+    while(!Q[0].empty()){
+        mx = Q[0].front();
+        my = Q[1].front();
+        if (imstate(mx,my)!=0){
+            Q[0].pop();
+            Q[1].pop();
+            continue;
+        }
+        
+        for (int k=0; k<se; ++k){
+            int px = mx + nl[my%2][k][0];
+            int py = my + nl[my%2][k][1];
+            if (px<0 || px>=imcrop.shape()[0] || py<0 || py>=imcrop.shape()[1]) continue;
+            if (imcrop(px, py)==label && imstate(px,py)==0){  // see if it's on the edge;
+                Q[0].push(px);
+                Q[1].push(py);
+            }
+        }
+        imstate(mx, my)= 1;
+        Q[0].pop();
+        Q[1].pop();
+    }
+    Q[0].push(mx);
+    Q[1].push(my);
+    Q[0].push(-1); // -1 is a mark point
+    Q[1].push(-1);
+    imstate(mx, my) = 2;
+    p1[0] = mx;
+    p1[1] = my;
+
+    
+    // 4. Second propagation
+    while(!Q[0].empty()){
+        mx = Q[0].front();
+        my = Q[1].front();
+        
+        if (mx == -1) {  // if the mark point pop out, one iteration is done, len ++
+            ++len;
+            Q[0].pop();
+            Q[1].pop();
+            if (Q[0].empty()) break;
+            Q[0].push(-1);
+            Q[1].push(-1);
+            mx = Q[0].front();
+            my = Q[1].front();
+        }
+        p2[0] = mx;
+        p2[1] = my;
+        
+        // f = 0;
+        for (int k=0; k<se; ++k){
+            int px = mx + nl[my%2][k][0];
+            int py = my + nl[my%2][k][1];
+            if (px<0 || px>=imcrop.shape()[0] || py<0 || py>=imcrop.shape()[1]) continue;
+            if (imcrop(px, py)==label && imstate(px, py)==1){  // see if it's on the edge;
+                Q[0].push(px);
+                Q[1].push(py);
+                imstate(px, py) = 2;
+            }
+        }
+        
+        Q[0].pop();
+        Q[1].pop();
+    }
+    
+    
+    for (int k=0; k<2; ++k){
+        for (int l=0; l<se; ++l){
+            delete[] nl[k][l];
+        }
+    }
+    delete[] nl;
+    
+    
+    return len;
+
+}
+
+int cropGeoLengthMid(features & feat, MultiArrayView<2, int> const & imlabel, MultiArrayView<2, int> const & imlabel2, int (& p1)[2], int (& p2)[2], int const * label2Area, int const label, int const se){
+    
+    MultiArrayView<2, int> imcrop = imlabel.subarray(Shape2(feat.x_start, feat.y_start), Shape2(feat.x_end, feat.y_end));
+    MultiArrayView<2, int> imcrop2 = imlabel2.subarray(Shape2(feat.x_start, feat.y_start), Shape2(feat.x_end, feat.y_end));
+
+    set<int> midLabels;
+    for (int k=0; k<imcrop.size(); ++k) {
+        if (imcrop[k] != label) continue;
+        if (imcrop2[k] == 0) continue;
+        midLabels.insert( imcrop2[k] );
+    }
+    
+    feat.nb_mid_obj = midLabels.size();
+    
+    int maxArea = 0;
+    int maxLabel = 0;
+    std::set<int>::iterator it;
+    for (it=midLabels.begin(); it!=midLabels.end(); ++it){
+        if (label2Area[ *it ] > maxArea){
+            maxArea = label2Area[ *it ];
+            maxLabel = *it;
+        }
+    }
+
+    int len = cropGeoLength(feat, imlabel2, p1, p2, maxLabel, 8, feat.perimeterMid);
+    
+    return len;
+
+}
 
 
-void computerFeats_1( vector<features> & feats, MultiArray<2, UInt8> const iminH, MultiArray<2, UInt8> const imRes, MultiArray<2, UInt8> const imCandi, MultiArray<2, UInt8> const imCandiMid, MultiArray<2, int> const imlabel, bool debugMode ){
+void computerFeats_1( vector<features> & feats, MultiArrayView<2, UInt8> const iminH, MultiArrayView<2, UInt8> const imRes, MultiArrayView<2, UInt8> const imCandi, MultiArrayView<2, UInt8> const imCandiMid, MultiArrayView<2, int> const imlabel, bool debugMode ){
     
     int n_candi = vigra_mod::labelCount(imlabel);
     if ( (n_candi + 1) != feats.size()) std::cout<<"SOMETHING IS WRONG!!"<<std::endl;
@@ -127,8 +387,13 @@ void computerFeats_1( vector<features> & feats, MultiArray<2, UInt8> const iminH
             if (feats[n].minIntensityResRC > imRes(i,j)) feats[n].minIntensityResRC = imRes(i,j);
             if (feats[n].x_coord == -1) feats[n].x_coord = i;
             if (feats[n].y_coord == -1) feats[n].y_coord = j;
+            if (feats[n].x_start > i) feats[n].x_start = i;
+            if (feats[n].x_end < i) feats[n].x_end = i;
+            if (feats[n].y_start > j) feats[n].y_start = j;
+            if (feats[n].y_end < j) feats[n].y_end = j;
             feats[n].x_center += i;
             feats[n].y_center += j;
+            
             
             //// For mid layer
             if (imCandiMid(i,j)==0) continue;
@@ -152,15 +417,47 @@ void computerFeats_1( vector<features> & feats, MultiArray<2, UInt8> const iminH
     }
 }
 
+void computerFeats_2( vector<features> & feats, MultiArrayView<2, UInt8> const iminH, MultiArrayView<2, UInt8> const imRes, MultiArrayView<2, UInt8> const imCandi, MultiArrayView<2, UInt8> const imCandiMid, MultiArrayView<2, int> const imlabel, bool debugMode ){
 
-void selection_1( vector<features> & feats, MultiArray<2, int> const imlabel, MultiArray<2, UInt8> & imout){
+    MultiArray<2, int> imlabel2(iminH.shape());
+    vigra_mod::Label(imCandiMid, imlabel2, 8);
+    int n_candi2 = vigra_mod::labelCount(imlabel2) + 1;
+    
+    //// get area of each label
+    int * label2Area = new int [ n_candi2];
+    std::fill_n(label2Area, n_candi2, 0);
+    for (int k=0; k<imlabel2.size(); ++k) {
+        if (imlabel2[k]==0) continue;
+        label2Area[imlabel2[k]] ++;
+    }
+    
+    //// computer geo features
+    for (int k=1; k<feats.size(); ++k) {
+        int p1[2], p2[2];
+        if (!feats[k]._iskept()) continue;
+        feats[k].geoLength = cropGeoLength(feats[k], imlabel, p1, p2, k, 8, feats[k].perimeter);
+        feats[k].p1[0] = p1[0];
+        feats[k].p1[1] = p1[1];
+        feats[k].p2[0] = p2[0];
+        feats[k].p2[1] = p2[1];
+        feats[k].geoLength2 = sqrt(pow(float(p1[0]-p2[0]),2) + pow(float(p1[1]-p2[1]),2));
+        feats[k].geoLengthMid = cropGeoLengthMid(feats[k], imlabel, imlabel2, p1, p2, label2Area, k, 8);
+        feats[k].geoLength2Mid = sqrt(pow(float(p1[0]-p2[0]),2) + pow(float(p1[1]-p2[1]),2));
+        feats[k].circularity = ( 4 * feats[k].areaRC ) / ( pi * feats[k].geoLength * feats[k].geoLength );
+    }
+    
+    delete[] label2Area;
+}
+
+
+void selection_1( vector<features> & feats, MultiArrayView<2, int> const imlabel, MultiArrayView<2, UInt8> imout){
     
     int * mapLabelIntensity = new int [ feats.size() ];
     std::fill_n(mapLabelIntensity, feats.size(), 0);
 
     for (int k=1; k < feats.size(); ++k){
-        if (feats[k].meanIntensityResRC < 50 || feats[k].areaRC < 70 || feats[k].areaMid < 30 || feats[k].areaRC > 2000) {
-            feats[k].iskept = false;
+        // 47 70 30 2000
+        if (feats[k].meanIntensityResRC < 36 || feats[k].areaRC < 70 || feats[k].areaMid < 30 || feats[k].areaRC > 2000) {            feats[k].iskept = false;
         }
         else {
             mapLabelIntensity[k] = 255;
@@ -173,7 +470,7 @@ void selection_1( vector<features> & feats, MultiArray<2, int> const imlabel, Mu
 }
 
 
-void findMitosis(vector<int> const (& mitosPos)[2],  MultiArray<2, int> const imlabel, vector<int> & mitoLabel, int R){
+void findMitosis(vector<int> const (& mitosPos)[2],  MultiArrayView<2, int> const imlabel, vector<int> & mitoLabel, int R){
     const int nb[8][2] = { {-1,-1}, {-1,0}, {-1,1},
         {0,-1}, {0,1}, {1,-1}, {1,0}, {1,1} };
     for (int k = 0; k<mitosPos[0].size(); ++k){
@@ -238,13 +535,17 @@ void findMitosis(vector<int> const (& mitosPos)[2],  MultiArray<2, int> const im
 }
 
 
-void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool const debugMode, int argc, char ** const argv){
+void imageProc( MultiArrayView<2, vigra::RGBValue<UInt8> > const & iminRGB, bool const debugMode, int argc, char ** const argv){
     
     using namespace vigra::multi_math;
     
     bool analyseMode = false;
     
     if (argc == 5) analyseMode = true;
+    
+    int width = int(iminRGB.shape()[0]);
+    int height = int(iminRGB.shape()[1]);
+
     
     MultiArray<2, vigra::RGBValue<double> > imtempRGB(iminRGB.shape());
 
@@ -342,15 +643,18 @@ void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool con
     vigra_mod::Label(imThd, imlabel, 8);
     int n_candi = vigra_mod::labelCount(imlabel);
     
-    vector <features> feats(n_candi + 1); // "+ 1" is because in imlabel, start from 1, not zero. Thus feats[0] is Null.
+    vector <features> feats(n_candi + 1, features(width, height)); // "+ 1" is because in imlabel, start from 1, not zero. Thus feats[0] is Null.
     computerFeats_1( feats, iminH, imRes, imThd, imDivArea, imlabel, debugMode);
     selection_1( feats, imlabel, imSelection );
+    computerFeats_2( feats, iminH, imRes, imThd, imDivArea, imlabel, debugMode);
+
     
     if (debugMode){
         exportImage(imSelection, ImageExportInfo("output/imSelection.png"));
     }
     
     exportImage(imSelection, ImageExportInfo(argv[2]));
+    
 
     
     //// Analyse annotated mitosis
@@ -396,7 +700,9 @@ void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool con
             <<feats[k]._areaRC()<<" "<<feats[k]._areaMid()<<" "<<feats[k]._meanIntensityResRC()<<" "
             <<feats[k]._maxIntensityResRC()<<" "<<feats[k]._minIntensityResRC()<<" "
             <<feats[k]._meanIntensityResMid()<<" "<<feats[k]._maxIntensityResMid()<<" "
-            <<feats[k]._minIntensityResMid();
+            <<feats[k]._minIntensityResMid()<<" "<<feats[k]._geoLength()<<" "<<feats[k]._geoLength2()<<" "
+            <<feats[k]._perimeter()<<" "<< feats[k].geoLengthMid <<" "<< feats[k].geoLength2Mid <<" "
+            <<feats[k].perimeterMid <<" "<<feats[k]._circularity()<<" "<<feats[k]._nb_mid_obj();
             
             if (isMito) myfile << " 1\n";
             else myfile << " 0\n";
@@ -409,7 +715,7 @@ void imageProc( MultiArray<2, vigra::RGBValue<UInt8> > const & iminRGB, bool con
 
 int main (int argc, char ** argv)
 {
-    bool debugMode = false;
+    bool debugMode = true;
     
     clock_t t1 = clock();
 

@@ -702,8 +702,6 @@ meanValue (MultiArrayView<2, T1, S1> const & imin, int onset = 0)
 }// end of function
     
     
-
-    
     
 //template <class T1, class S1>
 //void
