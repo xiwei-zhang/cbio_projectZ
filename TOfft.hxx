@@ -200,6 +200,7 @@ fastMeanFilter(MultiArrayView<2, T1, S1> const & imin,
 	}
 
 
+
 	/////////////////////////////////////////////////
 
 
@@ -259,8 +260,12 @@ fastMeanFilter(MultiArrayView<2, T1, S1> const & imin,
 		}
 	}
 	
+    double maxv(0), minv(9999);
 	for (int j=0; j<lHeight; j++){
 		for (int i=0; i<lWidth; i++){
+            if (maxv < imPad(i-xx0+x0_, j-yy0+y0_)) maxv = imPad(i-xx0+x0_, j-yy0+y0_);
+            if (minv > imPad(i-xx0+x0_, j-yy0+y0_)) minv = imPad(i-xx0+x0_, j-yy0+y0_);
+            
             imout(i,j) = imPad(i-xx0+x0_, j-yy0+y0_);
 //			if (depth==8) imout.at<uchar>(j,i) = imPad.at<float>(j-yy0+y0_,i-xx0+x0_);
 //			if (depth==33) imout.at<float>(j,i) = imPad.at<float>(j-yy0+y0_,i-xx0+x0_);
@@ -276,37 +281,45 @@ fastMeanFilter(MultiArrayView<2, T1, S1> const & imin,
 }
 
 
-//void getVAR(Mat imin, Mat imout, int l){
+
+//template <class T1, class S1>
+//void
+//getVAR(MultiArrayView<2, T1, S1> const & imin,
+//               MultiArrayView<2, T1, S1> imout, int l){
 //
-//	Mat imtemp1 = imin.clone();
+//    MultiArray<2, UInt8> imtemp1 (imin.shape());
+//    MultiArray<2, float> imvar (imin.shape());
+//    imout.init(0);
+//    imvar.init(0);
+//
 //	int w(0);
-//	w = ((l-1)/2)*2+1;
-//	blur(imin,imtemp1,Size(w,w));
-//	imwrite("zz1.png",imtemp1);
+//    fastMeanFilter(imin, imtemp1, l);
+//    exportImage(imtemp1, ImageExportInfo("output/toto.png"));
 //
-//	imout.setTo(0);
 //	w = (l-1)/2;
 //	int x,y,np;
-//	np = (w*2+1)*(w*2+1);
+//	// np = (w*2+1)*(w*2+1);
 //	float meanv, sumv;
-//	for (int j=0; j<imin.rows; j++){
-//		for (int i=0; i<imin.cols; i++){
-//			meanv = imtemp1.at<uchar>(j,i);
-//			sumv = 0;
-//			for (int m=-w; m<=w; m++){
-//				for (int n=-w; n<=w; n++){
-//					x = i+m;
-//					y = j+n;
-//					if (x<0 || x>=imin.cols || y<0 || y>=imin.rows) continue;
-//					sumv += ((float)imin.at<uchar>(y,x) - meanv)*((float)imin.at<uchar>(y,x) - meanv);
-//				}
-//			}
-//			sumv /= np;
-//			if (sumv>255) sumv=255;
-//			imout.at<uchar>(j,i)=round(sumv);
-//		}
-//	}
-//
+//    for (int j=0; j<imin.shape()[1]; ++j) {
+//        for (int i=0; i<imin.shape()[0]; ++i) {
+//            meanv = imtemp1(i,j);
+//            sumv = 0;
+//            np = 0;
+//            for (int m=-w; m<=w; m++){
+//                for (int n=-w; n<=w; n++){
+//                    x = i+m;
+//                    y = j+n;
+//                    if (x<0 || x>=imin.shape()[0] || y<0 || y>=imin.shape()[1]) continue;
+//                    sumv += (float(imin(x,y)) - meanv)*(float(imin(x,y)) - meanv);
+//                    np ++;
+//                }
+//            }
+//            sumv /= np;
+//            imvar(i,j) = sumv;
+//        }
+//    }
+//    
+//    vigra_mod::im2uint8(imvar, imout);
 //}
 
 #endif
