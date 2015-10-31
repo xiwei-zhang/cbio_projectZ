@@ -62,7 +62,9 @@ class features{
     
     int meanIRC, maxIRC, minIRC, meanIMid, maxIMid, minIMid; // the same on original image
     
-    int volumeRC, volumeMid, pics, borderDepth, StdRC, StdMid, UORC, UOMid;
+    int volumeRC, volumeMid, pics, borderDepth, UORC, UOMid;
+    
+    float StdRC, StdMid;
     
     //// geometric features
     int geoLength;  // geodesic length
@@ -116,7 +118,7 @@ public:
         meanIRC = 0; maxIRC = 0; minIRC = 255; meanIMid = 0; maxIMid = 0; minIMid = 255;
         
         volumeRC = 0; volumeMid = 0; pics = 0; borderDepth= 0;
-        StdRC = 0; StdMid = 0; UORC = 0; UOMid = 0;
+        StdRC = 0.0; StdMid = 0.0; UORC = 0; UOMid = 0;
         
         geoLength = 0;
         geoLength2 = 0;
@@ -173,25 +175,25 @@ public:
         y_coord = y;
     }
     
-    const int & _areaRC() const { return areaRC; }
-    const int & _areaMid() const { return areaMid; }
-    const int & _meanIntensityResRC() const { return meanIntensityResRC; }
-    const int & _maxIntensityResRC() const { return maxIntensityResRC; }
-    const int & _minIntensityResRC() const { return minIntensityResRC; }
-    const int & _meanIntensityResMid() const { return meanIntensityResMid; }
-    const int & _maxIntensityResMid() const { return maxIntensityResMid; }
-    const int & _minIntensityResMid() const { return minIntensityResMid; }
-    const int & _x_coord() const { return x_coord; }
-    const int & _y_coord() const { return y_coord; }
-    const int & _x_center() const { return x_center; }
-    const int & _y_center() const { return y_center; }
-    const int & _n_label() const { return n_label; }
-    const bool & _iskept() const { return iskept; }
-    const int & _geoLength() const { return geoLength; }
-    const int & _geoLength2() const { return geoLength2; }
-    const int & _perimeter() const { return perimeter; }
-    const float & _circularity() const { return circularity; }
-    const int & _nb_mid_obj() const { return nb_mid_obj; }
+//    const int & _areaRC() const { return areaRC; }
+//    const int & _areaMid() const { return areaMid; }
+//    const int & _meanIntensityResRC() const { return meanIntensityResRC; }
+//    const int & _maxIntensityResRC() const { return maxIntensityResRC; }
+//    const int & _minIntensityResRC() const { return minIntensityResRC; }
+//    const int & _meanIntensityResMid() const { return meanIntensityResMid; }
+//    const int & _maxIntensityResMid() const { return maxIntensityResMid; }
+//    const int & _minIntensityResMid() const { return minIntensityResMid; }
+//    const int & _x_coord() const { return x_coord; }
+//    const int & _y_coord() const { return y_coord; }
+//    const int & _x_center() const { return x_center; }
+//    const int & _y_center() const { return y_center; }
+//    const int & _n_label() const { return n_label; }
+//    const bool & _iskept() const { return iskept; }
+//    const int & _geoLength() const { return geoLength; }
+//    const int & _geoLength2() const { return geoLength2; }
+//    const int & _perimeter() const { return perimeter; }
+//    const float & _circularity() const { return circularity; }
+//    const int & _nb_mid_obj() const { return nb_mid_obj; }
 
 
 
@@ -597,7 +599,7 @@ void computerFeats_2( vector<features> & feats, MultiArrayView<2, UInt8> const i
     //// computer geo features and other features
     for (int k=1; k<feats.size(); ++k) {
         int p1[2], p2[2];
-        if (!feats[k]._iskept()) continue;
+        if (!feats[k].iskept) continue;
         feats[k].geoLength = cropGeoLength(feats[k], imlabel, p1, p2, k, 8, feats[k].perimeter);
         feats[k].p1[0] = p1[0];
         feats[k].p1[1] = p1[1];
@@ -706,20 +708,35 @@ void writeFile(char const * output_name, vector<features> const & feats, vector<
     ofstream myfile;
     myfile.open (output_name);
     for (int k=1; k < feats.size(); ++k){
-        if (!feats[k]._iskept()) continue;
+        if (!feats[k].iskept) continue;
         bool isMito(false);
         for (int l=0; l<mitoLabel.size(); ++l){
             if (k == mitoLabel[l]) isMito = true;
         }
-        myfile << feats[k]._x_center() <<" "<< feats[k]._y_center()<<" "
-        <<feats[k]._x_coord()<<" "<<feats[k]._y_coord()<<" "
-        <<feats[k]._areaRC()<<" "<<feats[k]._areaMid()<<" "<<feats[k]._meanIntensityResRC()<<" "
-        <<feats[k]._maxIntensityResRC()<<" "<<feats[k]._minIntensityResRC()<<" "
-        <<feats[k]._meanIntensityResMid()<<" "<<feats[k]._maxIntensityResMid()<<" "
-        <<feats[k]._minIntensityResMid()<<" "<<feats[k]._geoLength()<<" "<<feats[k]._geoLength2()<<" "
-        <<feats[k]._perimeter()<<" "<< feats[k].geoLengthMid <<" "<< feats[k].geoLength2Mid <<" "
-        <<feats[k].perimeterMid <<" "<<feats[k]._circularity()<<" "<<feats[k].circularityMid<<" "
-        <<feats[k]._nb_mid_obj()<<" "<<feats[k].ratioFillHolesArea;
+        
+        
+        // position info (4)
+        myfile << feats[k].x_center <<" "<< feats[k].y_center<<" "
+        <<feats[k].x_coord<<" "<<feats[k].y_coord<<" "
+        
+        // area and intensity volume, pics, std (19)
+        <<feats[k].areaRC<<" "<<feats[k].areaMid<<" "<<feats[k].meanIntensityResRC<<" "
+        <<feats[k].maxIntensityResRC<<" "<<feats[k].minIntensityResRC<<" "
+        <<feats[k].meanIntensityResMid<<" "<<feats[k].maxIntensityResMid<<" "
+        <<feats[k].minIntensityResMid<<" "<<feats[k].meanIRC<<" "<<feats[k].maxIRC<<" "
+        <<feats[k].minIRC<<" "<<feats[k].meanIMid<<" "<<feats[k].maxIMid<<" "<<feats[k].minIMid<<" "
+        <<feats[k].volumeRC<<" "<<feats[k].volumeMid<<" "<<feats[k].pics<<" "<<feats[k].StdRC<<" "
+        <<feats[k].StdMid<<" "
+        
+        // length, perimeter, circularity (11)
+        <<feats[k].geoLength<<" "<<feats[k].geoLength2<<" "<<feats[k].geoLengthMid <<" "
+        <<feats[k].geoLength2Mid <<" "<<feats[k].perimeter<<" "<<feats[k].perimeterMid<<" "
+        <<feats[k].circularity<<" "<<feats[k].circularityMid<<" "<<feats[k].ratioLen2<<" "
+        <<feats[k].ratioFillHolesArea<<" "<<feats[k].nb_mid_obj<<" "
+        
+        // contextual (6)
+        <<feats[k].nPic_h<<" "<<feats[k].nPic_l<<" "<<feats[k].area_h<<" "<<feats[k].area_l<<" "
+        <<feats[k].volume_h<<" "<<feats[k].volume_l;
         
         if (isMito) myfile << " 1\n";
         else myfile << " 0\n";
