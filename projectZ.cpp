@@ -212,7 +212,7 @@ public:
     
     friend void getContextualFeats(features & feat, MultiArrayView<2, int> const & imlabel, MultiArrayView<2, UInt8> const & iminH, MultiArrayView<2, UInt8> const & imRes, MultiArrayView<2, UInt8> const & imMaxima, int const label);
 
-    friend void writeFile(char const * output_name, vector<features> const & feats, vector<int> const & mitoLabel);
+    friend void writeFile(char const * output_name, vector<features> const & feats, vector<int> const & mitoLabel, vector<int> const & notmitoLabel,  bool const debugMode);
 
 };  // end of class definition
 
@@ -704,16 +704,19 @@ void findMitosis(vector<int> const (& mitosPos)[2],  MultiArrayView<2, int> cons
 }
 
 
-void writeFile(char const * output_name, vector<features> const & feats, vector<int> const & mitoLabel){
+void writeFile(char const * output_name, vector<features> const & feats, vector<int> const & mitoLabel, vector<int> const & notmitoLabel,  bool const debugMode){
     ofstream myfile;
     myfile.open (output_name);
     for (int k=1; k < feats.size(); ++k){
         if (!feats[k].iskept) continue;
         bool isMito(false);
+        bool isNotMito(false);
         for (int l=0; l<mitoLabel.size(); ++l){
             if (k == mitoLabel[l]) isMito = true;
         }
-        
+        for (int l=0; l<notmitoLabel.size(); ++l){
+            if (k == notmitoLabel[l]) isNotMito = true;
+        }
         
         // position info (4)
         myfile << feats[k].x_center <<" "<< feats[k].y_center<<" "
@@ -738,10 +741,13 @@ void writeFile(char const * output_name, vector<features> const & feats, vector<
         <<feats[k].nPic_h<<" "<<feats[k].nPic_l<<" "<<feats[k].area_h<<" "<<feats[k].area_l<<" "
         <<feats[k].volume_h<<" "<<feats[k].volume_l;
         
+        if (isMito && isNotMito) std::cout<<"Both mito and notmito!!!!"<<std::endl;
         if (isMito) myfile << " 1\n";
-        else myfile << " 0\n";
+        else if (isNotMito) myfile << " 2\n";
+        else myfile << " 3\n";
         
-        if (isMito) std::cout<<"MITOS : "<<k<<std::endl;
+        if (debugMode)
+            if (isMito) std::cout<<"MITOS : "<<k<<std::endl;
     }
     myfile.close();
 }
@@ -753,7 +759,7 @@ void imageProc( MultiArrayView<2, vigra::RGBValue<UInt8> > const & iminRGB, bool
     
     bool analyseMode = false;
     
-    if (argc == 5) analyseMode = true;
+    if (argc == 6) analyseMode = true;
     
     int width = int(iminRGB.shape()[0]);
     int height = int(iminRGB.shape()[1]);
@@ -922,9 +928,31 @@ void imageProc( MultiArrayView<2, vigra::RGBValue<UInt8> > const & iminRGB, bool
         vector<int> mitoLabel;
         findMitosis(mitosPos, imlabel2, mitoLabel, 20);
         
+        
+        //// Read csv file to get not mitosis center coordinate
+        std::ifstream infile2(argv[4]);
+        vector<int> notmitosPos[2];
+        while (std::getline(infile2, line))
+        {
+            stringstream ss( line );
+            string field;
+            
+            for (int i = 0; i<2; ++i){
+                std::getline( ss, field, ',' );
+                stringstream fs( field );
+                int value(-1);
+                fs >> value;
+                notmitosPos[i].push_back(value);
+            }
+        }
+        infile2.close();
+        
+        vector<int> notmitoLabel;
+        findMitosis(notmitosPos, imlabel2, notmitoLabel, 20);
+        
         // feats[0].getFeatures();
         
-        writeFile(argv[4], feats, mitoLabel);
+        writeFile(argv[5], feats, mitoLabel, notmitoLabel, debugMode);
     }
     
     delete [] maxiLabel;
@@ -938,12 +966,16 @@ int main (int argc, char ** argv)
     
     clock_t t1 = clock();
 
-
+    //// argv[1] input image name
+    //// argv[2] output image name
+    //// argv[3] mitos csv
+    //// argv[4] notmitos csv
+    //// argv[5] output features txt name
     if (argc < 3){
         std::cout<<"Error: Give an image!! and an output image name!!"<<std::endl;
         return 1;
     }
-    else if (argc > 3 && argc < 5){
+    else if (argc > 3 && argc < 6){
         std::cout<<"If you want to computer the features, give csv file and output name!!"<<std::endl;
         return 1;
     }
