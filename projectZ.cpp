@@ -962,7 +962,7 @@ void imageProc( MultiArrayView<2, vigra::RGBValue<UInt8> > const & iminRGB, bool
 
 int main (int argc, char ** argv)
 {
-    bool debugMode = true;
+    bool debugMode = false;
     
     clock_t t1 = clock();
 
