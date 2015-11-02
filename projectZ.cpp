@@ -76,7 +76,7 @@ class features{
     int perimeterMid;
     float circularityMid;
     
-    float ratioLen2; // geoLength2Mid / geoLegnth2, for "U" shape structures
+    float ratioLen2; // geoLength2Mid / geoLength2, for "U" shape structures
     float ratioFillHolesArea;  // volume of the holes over areaRC
     
     
@@ -609,7 +609,12 @@ void computerFeats_2( vector<features> & feats, MultiArrayView<2, UInt8> const i
         feats[k].geoLengthMid = cropGeoLengthMid(feats[k], imlabel, imlabel2, iminH, p1, p2, label2Area, k, 8);
         feats[k].geoLength2Mid = sqrt(pow(float(p1[0]-p2[0]),2) + pow(float(p1[1]-p2[1]),2));
         feats[k].circularity = ( 4 * feats[k].areaRC ) / ( pi * feats[k].geoLength * feats[k].geoLength );
-        feats[k].ratioLen2 = float(feats[k].geoLength2Mid) / feats[k].geoLength2;
+        if (feats[k].geoLength2 == 0) {
+            feats[k].ratioLen2 = float(feats[k].geoLength2Mid) ;
+        }
+        else {
+            feats[k].ratioLen2 = float(feats[k].geoLength2Mid) / feats[k].geoLength2;
+        }
         feats[k].ratioFillHolesArea = getRatioFillHolesArea(feats[k], imlabel, iminH, imCandiFHLabel, imMaxima, k);
         
         getContextualFeats(feats[k], imlabel, iminH, imRes, imMaxima, k);
