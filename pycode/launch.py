@@ -517,11 +517,16 @@ def multi_proc(images, n_job):
         csvfile = os.path.join(csvfile, "mitosis")
         csvfile = os.path.join(csvfile, csv)
 
+        csv2 = filename + "_not_mitosis.csv"
+        csvfile2 = os.path.join(csv_path, slide)
+        csvfile2 = os.path.join(csvfile2, "mitosis")
+        csvfile2 = os.path.join(csvfile2, csv2)
+
         featout = filename + ".txt"
         featout_file = os.path.join(output_path, featout)
 
         order = "./projectZ " + image + " " + output_file + " " \
-                + csvfile + " " + featout_file
+                + csvfile + " " + csvfile2 + " " + featout_file
 
         os.system(order)
     
@@ -536,7 +541,7 @@ if __name__ == "__main__":
     
     input_path = "/home/seawave/work/database/train_40"
     csv_path = "/home/seawave/work/database/mitos_atypia"
-    output_path = "/home/seawave/work/output/test1b"
+    output_path = "/home/seawave/work/output/test3"
     
     
     train_folders = ["A03","A04","A05","A07","A10","A11","A12","A14","A15",\
@@ -575,6 +580,7 @@ if __name__ == "__main__":
 
 
     # multi_proc(imageGroup[0], 0)
+    # ipdb.set_trace()
 
     try:
         thread.start_new_thread( multi_proc, (imageGroup[0], 0) )
